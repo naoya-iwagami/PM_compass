@@ -1,0 +1,614 @@
+#loadingInline { display: none; align-items: center; }  
+#loadingInline .loading-text { font-size: 1rem; color: #333; margin-left: 0.5em; }  
+
+.assistant-message mjx-container {  
+    max-width: 100%;  
+    overflow-x: auto;  
+    overflow-y: visible;  
+    padding: 0.2em 0;  
+    vertical-align: middle;  
+}  
+.assistant-message mjx-container[display="true"] {  
+    display: block;  
+    margin-top: 0.4em !important;  
+    margin-bottom: 0.4em !important;  
+    text-align: left !important;  
+    padding: 0.35em 0;  
+}  
+.assistant-message mjx-container mjx-math {  
+    overflow: visible;  
+}  
+.assistant-message p {  
+    margin-top: 0.3em;  
+    margin-bottom: 0.3em;  
+}  
+
+/* インライン画像のスタイル */
+.assistant-message img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    background: #fff;
+    margin: 12px 0;
+    display: block;
+}
+
+html, body {  
+    width: 100%;  
+    height: 100%;  
+    margin: 0;  
+    padding: 0;  
+    overflow: hidden;  
+    background: #f4f6f8;  
+    color: #222;  
+}  
+
+.container-fluid {  
+    padding: 0;  
+    height: 100%;  
+}  
+
+.app-shell {  
+    height: 100%;  
+}  
+
+.row {  
+    height: 100%;  
+    margin: 0;  
+}  
+
+.sidebar {  
+    background-color: #f8f9fa;  
+    padding: 20px 15px;  
+    height: 100%;  
+    overflow-y: auto;  
+    overflow-x: hidden;  
+    border-right: 1px solid #e2e2e2;  
+}  
+
+.main-content {  
+    padding: 20px;  
+    display: flex;  
+    flex-direction: column;  
+    height: 100%;  
+    overflow: hidden;  
+    background: #f4f6f8;  
+}  
+
+.app-title,  
+.flashes {  
+    flex: 0 0 auto;  
+    margin-bottom: 10px;  
+}  
+
+.app-title {  
+    font-size: 1.8rem;  
+    font-weight: 700;  
+    color: #1f2d3d;  
+}  
+
+.sidebar-section {  
+    margin-bottom: 1.4rem;  
+    padding-bottom: 1rem;  
+    border-bottom: 1px solid #e6e9ed;  
+}  
+
+.sidebar-section:last-child {  
+    border-bottom: none;  
+    padding-bottom: 0;  
+}  
+
+.sidebar-title {  
+    margin-bottom: 0.45rem;  
+    font-weight: 700;  
+    color: #2d4059;  
+}  
+
+.sidebar-subtitle {  
+    margin-top: 1rem;  
+    margin-bottom: 0.75rem;  
+    font-size: 1rem;  
+    font-weight: 600;  
+}  
+
+.section-caption {  
+    font-size: 0.85rem;  
+    color: #667085;  
+    margin-bottom: 0.7rem;  
+    line-height: 1.45;  
+}  
+
+.mode-form .form-check {  
+    margin-bottom: 0.5rem;  
+}  
+
+.system-message-form textarea {  
+    resize: vertical;  
+    min-height: 160px;  
+}  
+
+.chat-box {  
+    flex: 1 1 auto;  
+    border: 1px solid #ddd;  
+    padding: 14px;  
+    background: #fff;  
+    overflow-y: auto;  
+    overflow-x: hidden;  
+    border-radius: 12px;  
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);  
+}  
+
+.chat-input {  
+    flex: 0 0 auto;  
+    margin-top: 10px;  
+    background: transparent;  
+}  
+
+.message-container {  
+    display: flex;  
+    margin-bottom: 15px;  
+}  
+
+.message-container.user {  
+    justify-content: flex-end;  
+}  
+
+.message-container.assistant {  
+    justify-content: flex-start;  
+}  
+
+.message-bubble {  
+    max-width: 78%;  
+    padding: 10px 12px;  
+    border-radius: 16px;  
+    word-wrap: break-word;  
+    word-break: break-word;  
+    position: relative;  
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);  
+}  
+
+.message-container.user .message-bubble {  
+    background-color: #dcf8c6;  
+}  
+
+.message-container.assistant .message-bubble {  
+    background-color: #f1f0f0;  
+}  
+
+.message-bubble p:last-child {  
+    margin-bottom: 0;  
+}  
+
+.plain-message {  
+    margin-top: 0.35rem;  
+    line-height: 1.55;  
+    white-space: normal;  
+}  
+
+.error-bubble {  
+    background: #fff3f3 !important;  
+    border: 1px solid #f1c0c0;  
+}  
+
+.assistant-message table {  
+    width: 100%;  
+    border-collapse: collapse;  
+    margin-bottom: 1em;  
+}  
+
+.assistant-message th,  
+.assistant-message td {  
+    border: 1px solid #ddd;  
+    padding: 8px;  
+}  
+
+.assistant-message pre {  
+    background: #f8f8f8;  
+    padding: 10px;  
+    overflow-x: auto;  
+    border-radius: 6px;  
+}  
+
+.assistant-message code {  
+    background: #f8f8f8;  
+    padding: 2px 4px;  
+    border-radius: 4px;  
+}  
+
+.assistant-message blockquote {  
+    margin: 0.7rem 0;  
+    padding: 0.65rem 0.9rem;  
+    border-left: 4px solid #c9d6e2;  
+    background: #f8fbff;  
+    color: #445;  
+}  
+
+.sidebar-button {  
+    width: 100%;  
+    text-align: left;  
+    padding: 0.55rem 0.7rem;  
+    background: none;  
+    border: none;  
+    border-radius: 8px;  
+    display: flex;  
+    flex-direction: column;  
+    align-items: flex-start;  
+    text-decoration: none;  
+}  
+
+.btn-link.sidebar-button {  
+    color: #234;  
+}  
+
+.btn-link.sidebar-button:hover {  
+    color: #0b5ed7;  
+    text-decoration: none;  
+    background: #eef5ff;  
+}  
+
+.btn-link.sidebar-button.active {  
+    background: #dcecff;  
+    color: #0b5ed7;  
+    font-weight: 600;  
+}  
+
+.chat-history {  
+    list-style: none;  
+    padding-left: 0;  
+    margin-bottom: 0.75rem;  
+    margin-top: 0.75rem;  
+}  
+
+.chat-history li {  
+    margin-bottom: 0.35rem;  
+}  
+
+.chat-history-item.active {  
+    border-radius: 8px;  
+}  
+
+.chat-history-title {  
+    display: block;  
+    width: 100%;  
+    font-size: 0.95rem;  
+    line-height: 1.35;  
+    word-break: break-word;  
+}  
+
+.chat-history-meta {  
+    margin-top: 0.2rem;  
+    color: #667085;  
+    font-size: 0.75rem;  
+}  
+
+.empty-note {  
+    list-style: none;  
+    color: #6c757d;  
+    font-size: 0.92rem;  
+    padding: 0.4rem 0;  
+}  
+
+.uploaded-images-wrap {  
+    margin-top: 1rem;  
+}  
+
+.uploaded-image {  
+    margin-bottom: 1rem;  
+    padding: 0.75rem;  
+    background: #fff;  
+    border: 1px solid #e5e5e5;  
+    border-radius: 10px;  
+}  
+
+.uploaded-image p {  
+    margin-bottom: 0.5rem;  
+    word-break: break-all;  
+    font-size: 0.9rem;  
+}  
+
+.uploaded-image img {  
+    display: block;  
+    max-width: 100%;  
+    border-radius: 6px;  
+    border: 1px solid #ddd;  
+    background: #fff;  
+}  
+
+.source-summary-box {  
+    margin-top: 12px;  
+    margin-bottom: 8px;  
+    padding: 0.9rem 1rem;  
+    background: #eef4fb;  
+    border: 1px solid #d5e3f4;  
+    border-radius: 10px;  
+    font-size: 0.95em;  
+}  
+
+.search-files-summary-title {  
+    margin-bottom: 0.35rem;  
+}  
+
+.toggle-link {  
+    font-size: 1rem;  
+    font-weight: 700;  
+    color: #1563a6;  
+    background: #eaf4fb;  
+    padding: 6px 10px;  
+    border-radius: 6px;  
+    display: inline-block;  
+    margin: 4px 0;  
+    box-shadow: 0 1px 6px rgba(0,0,0,0.03);  
+    cursor: pointer;  
+    text-decoration: underline;  
+    transition: background 0.2s, color 0.2s;  
+}  
+
+.toggle-link:hover {  
+    background: #d0e6f7;  
+    color: #17416a;  
+}  
+
+.search-files-list {  
+    margin: 0.5rem 0 0 0;  
+    padding-left: 1.2rem;  
+}  
+
+.search-files-list li {  
+    margin-bottom: 0.45rem;  
+    word-break: break-word;  
+}  
+
+.search-files-list .doclink {  
+    text-decoration: underline;  
+    cursor: pointer;  
+}  
+
+.search-queries small {  
+    display: block;  
+    margin-top: 8px;  
+    color: #666;  
+    font-size: 0.85em;  
+    line-height: 1.45;  
+}  
+
+.search-queries code {  
+    color: #1563a6 !important;  
+    background: #eff6ff;  
+    border-radius: 4px;  
+    padding: 1px 5px;  
+}  
+
+.feedback-container {  
+    margin-top: 10px;  
+}  
+
+.feedback-actions {  
+    margin-top: 6px;  
+}  
+
+/* モーダル内の文書詳細 */  
+.source-doc-meta {  
+    margin-bottom: 1rem;  
+    padding: 0.75rem;  
+    background: #f8f9fa;  
+    border: 1px solid #e7e7e7;  
+    border-radius: 8px;  
+}  
+
+.source-doc-meta > div {  
+    margin-bottom: 0.3rem;  
+    word-break: break-word;  
+}  
+
+.source-doc-section {  
+    margin-top: 1rem;  
+}  
+
+.source-doc-section-title {  
+    font-size: 1rem;  
+    font-weight: 700;  
+    color: #334;  
+    margin-bottom: 0.5rem;  
+}  
+
+.source-doc-block {  
+    margin-bottom: 1rem;  
+    border: 1px solid #e3e3e3;  
+    border-radius: 8px;  
+    overflow: hidden;  
+    background: #fff;  
+}  
+
+.source-doc-block-title {  
+    padding: 0.6rem 0.8rem;  
+    font-size: 0.92rem;  
+    font-weight: 600;  
+    background: #f5f7fa;  
+    border-bottom: 1px solid #e3e3e3;  
+    word-break: break-word;  
+}  
+
+.source-doc-pre {  
+    margin: 0;  
+    padding: 0.9rem;  
+    white-space: pre-wrap;  
+    word-break: break-word;  
+    font-family: Consolas, Monaco, monospace;  
+    font-size: 0.92rem;  
+    line-height: 1.45;  
+    max-height: 55vh;  
+    overflow: auto;  
+    background: #fff;  
+}  
+
+.source-range-list {  
+    margin: 0;  
+    padding-left: 1.2rem;  
+}  
+
+.source-range-list li {  
+    margin-bottom: 0.35rem;  
+    word-break: break-all;  
+}  
+
+.source-image-grid {  
+    display: grid;  
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));  
+    gap: 12px;  
+}  
+
+.source-image-card {  
+    display: block;  
+    text-decoration: none;  
+    color: #222;  
+    border: 1px solid #e1e1e1;  
+    border-radius: 10px;  
+    overflow: hidden;  
+    background: #fff;  
+    transition: box-shadow 0.15s ease, transform 0.15s ease;  
+}  
+
+.source-image-card:hover {  
+    text-decoration: none;  
+    color: #111;  
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);  
+    transform: translateY(-1px);  
+}  
+
+.source-image-card img {  
+    width: 100%;  
+    height: 180px;  
+    object-fit: contain;  
+    background: #fafafa;  
+    border-bottom: 1px solid #ececec;  
+}  
+
+.source-image-caption {  
+    padding: 0.5rem 0.65rem;  
+    font-size: 0.84rem;  
+    line-height: 1.35;  
+    word-break: break-word;  
+}  
+
+.source-image-path {  
+    margin-top: 0.25rem;  
+    color: #666;  
+    font-size: 0.75rem;  
+}  
+
+/* フラッシュ */  
+.flashes {  
+    list-style: none;  
+    padding-left: 0;  
+}  
+
+.flashes li {  
+    background: #fff3cd;  
+    border: 1px solid #ffeeba;  
+    color: #856404;  
+    padding: 0.65rem 0.85rem;  
+    border-radius: 6px;  
+    margin-bottom: 0.5rem;  
+}  
+
+/* フォーム */  
+textarea.form-control {  
+    resize: vertical;  
+}  
+
+/* -------------------------------------
+ * チャット履歴検索・ドリルダウン用追加 CSS
+ * ------------------------------------- */
+#historySearchInput {
+    border-radius: 6px;
+    font-size: 0.85rem;
+}
+
+.history-group {
+    margin-bottom: 0.5rem;
+}
+
+.history-group-header {
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #667085;
+    padding: 0.4rem 0.2rem;
+    user-select: none;
+    transition: color 0.2s;
+}
+
+.history-group-header:hover {
+    color: #0b5ed7;
+}
+
+.chat-history-group-list {
+    list-style: none;
+    padding-left: 0.5rem;
+    margin-bottom: 0;
+    margin-top: 0.2rem;
+}
+
+.chat-history-group-list .chat-history-item {
+    margin-bottom: 0.2rem;
+}
+
+
+/* レスポンシブ */  
+@media (max-width: 1199.98px) {  
+    .message-bubble {  
+        max-width: 86%;  
+    }  
+}  
+
+@media (max-width: 991.98px) {  
+    .message-bubble {  
+        max-width: 90%;  
+    }  
+
+    .source-image-grid {  
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));  
+    }  
+}  
+
+@media (max-width: 767.98px) {  
+    html, body {  
+        overflow: auto;  
+    }  
+
+    .container-fluid,  
+    .row {  
+        height: auto;  
+    }  
+
+    .sidebar {  
+        height: auto;  
+        border-right: none;  
+        border-bottom: 1px solid #e2e2e2;  
+    }  
+
+    .main-content {  
+        height: auto;  
+        overflow: visible;  
+        padding: 14px;  
+    }  
+
+    .chat-box {  
+        min-height: 45vh;  
+        max-height: 55vh;  
+    }  
+
+    .message-bubble {  
+        max-width: 96%;  
+    }  
+
+    .app-title {  
+        font-size: 1.45rem;  
+        margin-bottom: 0.5rem;  
+    }  
+
+    #mainHeader {  
+        align-items: flex-start !important;  
+    }  
+}

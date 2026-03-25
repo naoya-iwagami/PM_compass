@@ -1,0 +1,948 @@
+<!DOCTYPE html>  
+<html lang="ja">  
+<head>  
+    <meta charset="UTF-8">  
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">  
+    <title>PM Compass app</title>  
+  
+    <link rel="stylesheet"  
+          href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">  
+    <link rel="stylesheet"  
+          href="{{ url_for('static', filename='styles.css') }}">  
+    <link rel="stylesheet"  
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.css">  
+  
+    <script>  
+      window.__mathjaxReady = new Promise((resolve) => { window.__resolveMathJaxReady = resolve; });  
+  
+      window.MathJax = {  
+        loader: { load: ['[tex]/ams'] },  
+        tex: {  
+          inlineMath: [['$', '$'], ['\\$', '\\$']],  
+          displayMath: [['$$', '$$'], ['\\$', '\\$']],  
+          processEscapes: true,  
+          packages: {'[+]': ['ams']}  
+        },  
+        chtml: { linebreaks: { automatic: true } }  
+      };  
+    </script>  
+    <script id="MathJax-script" async  
+            src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"  
+            onload="(function(){  
+              try{  
+                if(window.MathJax && MathJax.startup && MathJax.startup.promise){  
+                  MathJax.startup.promise.then(function(){  
+                    window.__resolveMathJaxReady && window.__resolveMathJaxReady();  
+                  });  
+                }else{  
+                  window.__resolveMathJaxReady && window.__resolveMathJaxReady();  
+                }  
+              }catch(e){  
+                window.__resolveMathJaxReady && window.__resolveMathJaxReady();  
+              }  
+            })()"></script>  
+</head>  
+  
+<body data-conversation-mode="{{ session.get('conversation_mode', 'qa') }}">  
+<div class="container-fluid app-shell">  
+    <div class="row no-gutters">  
+        <aside class="col-lg-3 col-md-4 sidebar">  
+            <div class="sidebar-section">  
+                <h4 class="sidebar-title">モード選択</h4>  
+                <div class="section-caption">用途に応じて会話モードを切り替えます。</div>  
+  
+                <form method="POST" class="mode-form">  
+                    <div class="form-check">  
+                        <input class="form-check-input" type="radio" name="conversation_mode" id="mode_qa"  
+                               value="qa"  
+                               {% if session.get('conversation_mode', 'qa') == 'qa' %}checked{% endif %}  
+                               onchange="this.form.submit()">  
+                        <label class="form-check-label" for="mode_qa">応答モード（Q&A など）</label>  
+                    </div>  
+  
+                    <div class="form-check">  
+                        <input class="form-check-input" type="radio" name="conversation_mode" id="mode_reasoning"  
+                               value="reasoning"  
+                               {% if session.get('conversation_mode') == 'reasoning' %}checked{% endif %}  
+                               onchange="this.form.submit()">  
+                        <label class="form-check-label" for="mode_reasoning">推論モード（議論）</label>  
+                    </div>  
+  
+                    <div class="form-check">  
+                        <input class="form-check-input" type="radio" name="conversation_mode" id="mode_programming"  
+                               value="programming"  
+                               {% if session.get('conversation_mode') == 'programming' %}checked{% endif %}  
+                               onchange="this.form.submit()">  
+                        <label class="form-check-label" for="mode_programming">プログラミングモード（社内情報の検索 OFF）</label>  
+                    </div>  
+                    <input type="hidden" name="set_conversation_mode" value="1">  
+                </form>  
+            </div>  
+  
+            <div class="sidebar-section">  
+                <h5 class="sidebar-title">モデルへの指示</h5>  
+                <div class="section-caption">現在のチャットに適用する system message です。</div>  
+                <form method="POST" class="system-message-form">  
+                    <div class="form-group mb-2">  
+                        <textarea class="form-control" name="system_message" rows="8">{{ current_system_message }}</textarea>  
+                        <input type="hidden" name="set_system_message" value="1">  
+                    </div>  
+                    <button type="submit" class="btn btn-outline-primary btn-sm btn-block">指示を保存</button>  
+                </form>  
+            </div>  
+  
+            <div class="sidebar-section">  
+                <div class="d-flex align-items-center justify-content-between mb-2">  
+                    <h4 class="sidebar-title mb-0">チャット履歴</h4>  
+                    <form method="POST" class="mb-0">  
+                        <button type="submit" name="new_chat" value="true" class="btn btn-primary btn-sm">新しいチャット</button>  
+                    </form>  
+                </div>  
+  
+                <div class="mb-2">
+                    <input type="text" id="historySearchInput" class="form-control form-control-sm" placeholder="履歴を検索...">
+                </div>
+
+                <div id="chatHistoryContainer">
+                    <ul class="chat-history" id="originalChatHistory">  
+                        {% if chat_sessions %}  
+                            {% if not show_all_history %}  
+                                {% set display_sessions = chat_sessions[:max_displayed_history] %}  
+                            {% else %}  
+                                {% set display_sessions = chat_sessions[:max_total_history] %}  
+                            {% endif %}  
+  
+                            {% for chat in display_sessions %}  
+                                {% set is_active = (chat.session_id == current_session_id) %}  
+                                {% set preview = chat.first_assistant_message if chat.first_assistant_message else '新しいチャット' %}  
+                                <li class="chat-history-item {% if is_active %}active{% endif %}">  
+                                    <form method="POST" class="mb-0">  
+                                        <input type="hidden" name="select_chat" value="{{ chat.session_id }}">  
+                                        <button type="submit" class="btn btn-link sidebar-button {% if is_active %}active{% endif %}">  
+                                            <span class="chat-history-title">  
+                                                {{ preview[:20] }}{% if preview|length > 20 %}…{% endif %}  
+                                            </span>  
+                                            <small class="chat-history-meta">  
+                                                {% if chat.created_at %}  
+                                                    {{ chat.created_at[:16].replace('T', ' ') }}  
+                                                {% else %}  
+                                                    {{ chat.session_id[:8] }}  
+                                                {% endif %}  
+                                            </small>  
+                                        </button>  
+                                    </form>  
+                                </li>  
+                            {% endfor %}  
+                        {% else %}  
+                            <li class="empty-note">チャット履歴がありません。</li>  
+                        {% endif %}  
+                    </ul>  
+  
+                    {% if chat_sessions|length > max_displayed_history %}  
+                        <form method="POST" class="mt-2" id="toggleHistoryForm">  
+                            <button type="submit" name="toggle_history" class="btn btn-secondary btn-sm btn-block">  
+                                {{ '少なく表示' if show_all_history else 'もっと見る' }}  
+                            </button>  
+                        </form>  
+                    {% endif %}  
+                </div>
+            </div>  
+  
+            <div class="sidebar-section">  
+                <h4 class="sidebar-title">画像アップロード</h4>  
+                <div class="section-caption">質問に添付する画像をアップロードできます。</div>  
+  
+                <form method="POST" enctype="multipart/form-data">  
+                    <div class="form-group mb-0">  
+                        <input type="file" name="images" multiple class="form-control-file"  
+                               onchange="this.form.submit()">  
+                        <input type="hidden" name="upload_images" value="1">  
+                    </div>  
+                </form>  
+  
+                {% if images %}  
+                    <div class="uploaded-images-wrap">  
+                        <h5 class="sidebar-subtitle">アップロード画像</h5>  
+                        {% for img in images %}  
+                            <div class="uploaded-image">  
+                                <p>{{ img.name }}</p>  
+                                <img src="{{ img.url }}" alt="{{ img.name }}">  
+                                <form method="post">  
+                                    <input type="hidden" name="delete_image" value="{{ img.name }}">  
+                                    <button type="submit" class="btn btn-danger btn-sm mt-2 btn-block">削除</button>  
+                                </form>  
+                            </div>  
+                        {% endfor %}  
+                    </div>  
+                {% endif %}  
+            </div>  
+        </aside>  
+  
+        <main class="col-lg-9 col-md-8 main-content">  
+            <div id="mainHeader" class="d-flex align-items-center justify-content-between mb-3 flex-wrap">  
+                <h1 class="app-title mb-0">PM Compass app</h1>  
+                <div id="loadingInline">  
+                    <span class="spinner-border spinner-border-sm text-primary" role="status"></span>  
+                    <span class="loading-text">応答中です。しばらくお待ちください…</span>  
+                </div>  
+            </div>  
+  
+            <div id="pageData"  
+                 data-sessionid="{{ current_session_id }}"  
+                 data-conversation-mode="{{ session.get('conversation_mode', 'qa') }}"></div>  
+  
+            {% with messages = get_flashed_messages() %}  
+            {% if messages %}  
+                <ul class="flashes">  
+                    {% for m in messages %}  
+                        <li>{{ m }}</li>  
+                    {% endfor %}  
+                </ul>  
+            {% endif %}  
+            {% endwith %}  
+  
+            <div id="chatBox" class="chat-box">  
+                {% for msg in chat_history %}  
+                <div class="message-container {% if msg.role=='user' %}user{% else %}assistant{% endif %}">  
+                    <div class="message-bubble">  
+                        {% if msg.role=='user' %}  
+                            <strong>あなた:</strong>  
+                            <div class="plain-message">{{ msg.content|e|replace('\n', '<br>')|safe }}</div>  
+                        {% else %}  
+                            <strong>アシスタント:</strong>  
+                            {% if msg.content_html %}  
+                                <div class="assistant-message">{{ msg.content_html|safe }}</div>  
+                            {% else %}  
+                                <div class="plain-message">{{ msg.content|e|replace('\n', '<br>')|safe }}</div>  
+                            {% endif %}  
+  
+                            <div class="feedback-container"  
+                                 data-msgid="{{ msg.message_id or '' }}"  
+                                 data-msgindex="{{ loop.index0 }}">  
+                              {% if msg.feedback %}  
+                              <div class="alert alert-info p-2 mb-0">  
+                                  <small>フィードバック: {{ '役に立った' if msg.feedback.rating=='helpful' else '不満' }}{% if msg.feedback.comment %} — {{ msg.feedback.comment }}{% endif %}</small>  
+                              </div>  
+                              {% else %}  
+                              <div class="feedback-actions">  
+                                  <button type="button" class="btn btn-outline-success btn-sm feedback-btn" data-rating="helpful">役に立った</button>  
+                                  <button type="button" class="btn btn-outline-danger btn-sm feedback-btn" data-rating="unhelpful">不満</button>  
+                              </div>  
+                              <div class="feedback-form mt-2" style="display:none;">  
+                                  <textarea class="form-control form-control-sm feedback-comment" rows="2" placeholder="具体的な点を記入してください…"></textarea>  
+                                  <div class="mt-1">  
+                                    <button type="button" class="btn btn-primary btn-sm feedback-submit">送信</button>  
+                                    <button type="button" class="btn btn-secondary btn-sm feedback-cancel">キャンセル</button>  
+                                  </div>  
+                              </div>  
+                              {% endif %}  
+                            </div>  
+                        {% endif %}  
+                    </div>  
+                </div>  
+                {% endfor %}  
+            </div>  
+  
+            <div id="searchFilesDisplay" class="source-summary-box" style="display:none;"></div>  
+            <script id="initialSearchData" type="application/json">{{ initial_search_data | tojson }}</script>  
+  
+            <form id="chatForm" class="chat-input">  
+                <div class="form-row align-items-end">  
+                    <div class="col-md-10 col-12 mb-2 mb-md-0">  
+                        <label for="promptTextarea" class="sr-only">質問</label>  
+                        <textarea name="prompt" id="promptTextarea"  
+                                  class="form-control" rows="3"  
+                                  placeholder="ご質問を入力してください（Enterで送信 / Shift+Enterで改行）"></textarea>  
+                    </div>  
+                    <div class="col-md-2 col-12">  
+                        <button type="submit" id="sendButton" class="btn btn-success btn-block">送信</button>  
+                    </div>  
+                </div>  
+            </form>  
+        </main>  
+    </div>  
+</div>  
+  
+<div id="docModalContainer"></div>  
+  
+<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>  
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>  
+  
+<script>  
+  async function ensureMathJaxReady() {  
+    if (window.MathJax && MathJax.typesetPromise) return;  
+    if (window.__mathjaxReady) await window.__mathjaxReady;  
+  }  
+  
+  async function typesetMath(elem) {  
+    await ensureMathJaxReady();  
+    if (window.MathJax && MathJax.typesetPromise) {  
+      try { if (elem) MathJax.typesetClear([elem]); } catch (e) {}  
+      return MathJax.typesetPromise(elem ? [elem] : undefined).catch(function (err) {  
+        console.error('MathJax typeset error:', err);  
+      });  
+    }  
+  }  
+  
+  document.addEventListener('DOMContentLoaded', function() {  
+    const promptTextarea = document.getElementById('promptTextarea');  
+    const chatForm = document.getElementById('chatForm');  
+    const chatBox = document.getElementById('chatBox');  
+    const sendButton = document.getElementById('sendButton');  
+    const loadingInline = document.getElementById('loadingInline');  
+    const searchFilesDisplay = document.getElementById('searchFilesDisplay');  
+    const pageDataEl = document.getElementById('pageData');  
+    const initialSearchDataEl = document.getElementById('initialSearchData');  
+  
+    const currentSessionId = pageDataEl ? pageDataEl.dataset.sessionid : '';  
+    const currentMode = ((pageDataEl && pageDataEl.dataset.conversationMode) || 'qa').toLowerCase();  
+  
+    let currentSearchFiles = [];  
+    let currentRagContext = '';  
+  
+    if (sessionStorage.getItem('chat_input')) {  
+      promptTextarea.value = sessionStorage.getItem('chat_input');  
+    }  
+  
+    promptTextarea.addEventListener('input', function() {  
+      sessionStorage.setItem('chat_input', promptTextarea.value);  
+    });  
+  
+    function isProgrammingMode() {  
+      return currentMode === 'programming';  
+    }  
+  
+    function scrollChatToBottom() {  
+      chatBox.scrollTop = chatBox.scrollHeight;  
+    }  
+  
+    function escapeHtml(value) {  
+      const str = value == null ? '' : String(value);  
+      return str.replace(/[&<>"']/g, function(m) {  
+        return ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'})[m];  
+      });  
+    }  
+  
+    function showLoading() {  
+      loadingInline.style.display = 'flex';  
+      sendButton.disabled = true;  
+    }  
+  
+    function hideLoading() {  
+      loadingInline.style.display = 'none';  
+      sendButton.disabled = false;  
+    }  
+  
+    function appendUserMessage(message) {  
+      const c = document.createElement('div');  
+      c.className = 'message-container user';  
+      c.innerHTML = `  
+        <div class="message-bubble">  
+          <strong>あなた:</strong>  
+          <div class="plain-message">${escapeHtml(message).replace(/\n/g, '<br>')}</div>  
+        </div>`;  
+      chatBox.appendChild(c);  
+      scrollChatToBottom();  
+      return c;  
+    }  
+  
+    function appendAssistantMessage(html, msgId) {  
+      const c = document.createElement('div');  
+      c.className = 'message-container assistant';  
+      c.innerHTML = `  
+        <div class="message-bubble">  
+          <strong>アシスタント:</strong>  
+          <div class="assistant-message">${html}</div>  
+          <div class="feedback-container" data-msgid="${escapeHtml(msgId || '')}">  
+            <div class="feedback-actions">  
+              <button type="button" class="btn btn-outline-success btn-sm feedback-btn" data-rating="helpful">役に立った</button>  
+              <button type="button" class="btn btn-outline-danger btn-sm feedback-btn" data-rating="unhelpful">不満</button>  
+            </div>  
+            <div class="feedback-form mt-2" style="display:none;">  
+              <textarea class="form-control form-control-sm feedback-comment" rows="2" placeholder="具体的な点を記入してください…"></textarea>  
+              <div class="mt-1">  
+                <button type="button" class="btn btn-primary btn-sm feedback-submit">送信</button>  
+                <button type="button" class="btn btn-secondary btn-sm feedback-cancel">キャンセル</button>  
+              </div>  
+            </div>  
+          </div>  
+        </div>`;  
+      chatBox.appendChild(c);  
+      scrollChatToBottom();  
+      typesetMath(c);  
+    }  
+  
+    function appendErrorMessage(message) {  
+      const c = document.createElement('div');  
+      c.className = 'message-container assistant';  
+      c.innerHTML = `  
+        <div class="message-bubble error-bubble">  
+          <strong>エラー:</strong>  
+          <div class="plain-message">${escapeHtml(message).replace(/\n/g, '<br>')}</div>  
+        </div>`;  
+      chatBox.appendChild(c);  
+      scrollChatToBottom();  
+    }  
+  
+    function addSearchQueriesUnder(userContainerEl, queries) {  
+      if (!userContainerEl || !Array.isArray(queries) || queries.length === 0) return;  
+      const bubble = userContainerEl.querySelector('.message-bubble');  
+      const box = document.createElement('div');  
+      box.className = 'search-queries';  
+      const items = queries.map(q => `<code>${escapeHtml(q)}</code>`).join('、');  
+      box.innerHTML = `<small>検索に使ったクエリ: ${items}</small>`;  
+      bubble.appendChild(box);  
+      scrollChatToBottom();  
+    }  
+  
+    function renderSourceImageGallery(images) {  
+      if (!Array.isArray(images) || images.length === 0) return '';  
+  
+      const usable = images.filter(img => img && img.image_url);  
+      if (usable.length === 0) return '';  
+  
+      const items = usable.map(img => {  
+        const srcNo = img.source_no ? `[${img.source_no}]` : '';  
+        const pageNo = img.page_number ? ` p.${img.page_number}` : '';  
+        const cp = escapeHtml(img.content_path || '');  
+        const url = escapeHtml(img.image_url || '');  
+        const caption = `${srcNo}${pageNo}`.trim();  
+  
+        return `  
+          <a class="source-image-card"  
+             href="${url}"  
+             target="_blank"  
+             rel="noopener noreferrer"  
+             referrerpolicy="no-referrer">  
+            <img src="${url}" alt="${cp}" loading="lazy">  
+            <div class="source-image-caption">  
+              <div>${escapeHtml(caption)}</div>  
+              <div class="source-image-path">${cp}</div>  
+            </div>  
+          </a>  
+        `;  
+      }).join('');  
+  
+      return `  
+        <div class="source-doc-section">  
+          <div class="source-doc-section-title">関連画像</div>  
+          <div class="source-image-grid">${items}</div>  
+        </div>  
+      `;  
+    }  
+  
+    function showModalRagContext(text) {  
+      const modalHtml = `  
+        <div class="modal fade" id="ragModal" tabindex="-1">  
+          <div class="modal-dialog modal-lg modal-dialog-scrollable">  
+            <div class="modal-content">  
+              <div class="modal-header">  
+                <h5 class="modal-title">RAGコンテキスト（実際にモデルへ投入した全文）</h5>  
+                <button type="button" class="close" data-dismiss="modal">&times;</button>  
+              </div>  
+              <div class="modal-body">  
+                <pre class="source-doc-pre"></pre>  
+              </div>  
+            </div>  
+          </div>  
+        </div>`;  
+      const modalContainer = document.getElementById('docModalContainer');  
+      modalContainer.innerHTML = modalHtml;  
+  
+      $('#ragModal .source-doc-pre').text(text || '');  
+      $('#ragModal').modal('show');  
+    }  
+  
+    function showModalDocument(doc) {  
+      const modalHtml = `  
+        <div class="modal fade" id="docModal" tabindex="-1">  
+          <div class="modal-dialog modal-xl modal-dialog-scrollable">  
+            <div class="modal-content">  
+              <div class="modal-header">  
+                <h5 class="modal-title"></h5>  
+                <button type="button" class="close" data-dismiss="modal">&times;</button>  
+              </div>  
+              <div class="modal-body"></div>  
+            </div>  
+          </div>  
+        </div>`;  
+  
+      const modalContainer = document.getElementById('docModalContainer');  
+      modalContainer.innerHTML = modalHtml;  
+  
+      const title = doc.title || '';  
+      const filepath = doc.filepath || '';  
+      const folder = doc.folder || '';  
+      const chunks = Array.isArray(doc.chunks) ? doc.chunks : [];  
+      const sourceNos = Array.isArray(doc.source_nos) ? doc.source_nos : [];  
+      const ragContexts = Array.isArray(doc.rag_contexts) ? doc.rag_contexts : [];  
+      const images = Array.isArray(doc.images) ? doc.images : [];  
+      const selectedRanges = Array.isArray(doc.selected_ranges) ? doc.selected_ranges : [];  
+      const downloadUrl = doc.url || '';  
+  
+      const metaHtml = `  
+        <div class="source-doc-meta">  
+          <div><strong>タイトル:</strong> ${escapeHtml(title)}</div>  
+          ${sourceNos.length ? `<div><strong>Sources番号:</strong> ${sourceNos.map(n => `[${escapeHtml(String(n))}]`).join(' ')}</div>` : ''}  
+          ${folder ? `<div><strong>フォルダ:</strong> ${escapeHtml(folder)}</div>` : ''}  
+          ${filepath ? `<div><strong>filepath:</strong> ${escapeHtml(filepath)}</div>` : ''}  
+          ${downloadUrl ? `  
+            <div class="mt-2">  
+              <a class="btn btn-outline-primary btn-sm"  
+                 href="${escapeHtml(downloadUrl)}"  
+                 target="_blank"  
+                 rel="noopener noreferrer"  
+                 referrerpolicy="no-referrer">  
+                 <span class="fa fa-download"></span> ダウンロード  
+              </a>  
+            </div>` : ''}  
+        </div>  
+      `;  
+  
+      const rangeHtml = `  
+        <div class="source-doc-section">  
+          <div class="source-doc-section-title">選択範囲（sort_key）: ${selectedRanges.length}件</div>  
+          ${selectedRanges.length ? `  
+            <ul class="source-range-list">  
+              ${selectedRanges.map(r => `  
+                <li><code>${escapeHtml(String(r[0] || ''))}</code> ～ <code>${escapeHtml(String(r[1] || ''))}</code></li>  
+              `).join('')}  
+            </ul>  
+          ` : `<div class="text-muted">範囲情報はありません。</div>`}  
+        </div>  
+      `;  
+  
+      const ragHtml = `  
+        <div class="source-doc-section">  
+          <div class="source-doc-section-title">実際にRAGへ投入された本文（このファイル分）: ${ragContexts.length}件</div>  
+          ${ragContexts.length ? ragContexts.map((rc, i) => `  
+            <div class="source-doc-block">  
+              <div class="source-doc-block-title">  
+                [RAG ${i + 1}] Sources番号: [${escapeHtml(String(rc.source_no || ''))}]  
+                ${rc.anchor_sort_key ? ` / anchor_sort_key: ${escapeHtml(rc.anchor_sort_key)}` : ''}  
+              </div>  
+              <pre class="source-doc-pre">${escapeHtml((rc.content || '').trim())}</pre>  
+            </div>  
+          `).join('') : `<div class="text-muted">表示できるRAG本文はありません。</div>`}  
+        </div>  
+      `;  
+  
+      const chunkHtml = `  
+        <div class="source-doc-section">  
+          <div class="source-doc-section-title">関連チャンク: ${chunks.length}件</div>  
+          ${chunks.length ? chunks.map((c, i) => `  
+            <div class="source-doc-block">  
+              <div class="source-doc-block-title">  
+                [${i + 1}] Sources番号: [${escapeHtml(String(c.source_no || ''))}]  
+                ${c.chunk_id ? ` / chunk_id: ${escapeHtml(c.chunk_id)}` : ''}  
+                ${c.chunk_kind ? ` / kind: ${escapeHtml(c.chunk_kind)}` : ''}  
+                ${c.page_number ? ` / p.${escapeHtml(String(c.page_number))}` : ''}  
+                ${c.sort_key ? ` / sort_key: ${escapeHtml(c.sort_key)}` : ''}  
+              </div>  
+              <pre class="source-doc-pre">${escapeHtml((c.content || '').trim())}</pre>  
+            </div>  
+          `).join('') : `<div class="text-muted">関連チャンクはありません。</div>`}  
+        </div>  
+      `;  
+  
+      const imageHtml = renderSourceImageGallery(images);  
+  
+      $('#docModal .modal-title').text(title || '文書詳細');  
+      $('#docModal .modal-body').html(metaHtml + imageHtml + rangeHtml + ragHtml + chunkHtml);  
+      $('#docModal').modal('show');  
+    }  
+  
+    async function fetchJson(url, options) {  
+      const resp = await fetch(url, options);  
+      const text = await resp.text();  
+  
+      let data = {};  
+      try {  
+        data = text ? JSON.parse(text) : {};  
+      } catch (e) {  
+        data = { raw: text };  
+      }  
+  
+      if (!resp.ok) {  
+        const msg = data.error || data.response || data.raw || `HTTP ${resp.status}`;  
+        throw new Error(msg);  
+      }  
+      return data;  
+    }  
+  
+    function renderSearchFiles(data) {  
+      if (isProgrammingMode()) {  
+        searchFilesDisplay.style.display = 'none';  
+        searchFilesDisplay.innerHTML = '';  
+        return;  
+      }  
+  
+      if (!Array.isArray(data.search_files) || data.search_files.length === 0) {  
+        searchFilesDisplay.style.display = 'none';  
+        searchFilesDisplay.innerHTML = '';  
+        return;  
+      }  
+  
+      currentSearchFiles = data.search_files;  
+      currentRagContext = typeof data.rag_context === 'string' ? data.rag_context : '';  
+  
+      const header = `  
+        <div class="search-files-summary-title">  
+          <span id="searchFilesToggle" class="toggle-link">この質問で検索に利用された文書 (${data.search_files.length}件)</span>  
+        </div>`;  
+  
+      let ul = '<div id="searchFilesUlContainer" style="display:none;"><ul class="search-files-list">';  
+  
+      data.search_files.forEach((file, idx) => {  
+        const srcNos = Array.isArray(file.source_nos) ? file.source_nos : [];  
+        const srcLabel = srcNos.map(n => `[${n}]`).join('');  
+        const imageCount = Number(file.image_count || 0);  
+        const chunkCount = (file.chunks && Array.isArray(file.chunks)) ? file.chunks.length : 0;  
+        const rangeCount = (file.selected_ranges && Array.isArray(file.selected_ranges)) ? file.selected_ranges.length : 0;  
+  
+        const dlBtn = file.url  
+          ? `<a href="${escapeHtml(file.url)}"  
+                class="btn btn-link btn-sm p-0 ml-2"  
+                title="ダウンロード"  
+                target="_blank"  
+                rel="noopener noreferrer"  
+                referrerpolicy="no-referrer">  
+                <span class="fa fa-download"></span> ダウンロード  
+             </a>`  
+          : '';  
+  
+        const folderNote = file.folder  
+          ? `<span class="text-muted ml-2">（${escapeHtml(file.folder)}）</span>`  
+          : '';  
+  
+        ul += `  
+          <li>  
+            <a href="#" class="doclink" data-docidx="${idx}">  
+              ${escapeHtml(srcLabel)} ${escapeHtml(file.title || '不明')}  
+            </a>  
+            <span class="text-muted ml-2">［関連チャンク: ${chunkCount}件］</span>  
+            <span class="text-muted ml-2">［画像: ${imageCount}件］</span>  
+            <span class="text-muted ml-2">［範囲: ${rangeCount}件］</span>  
+            ${dlBtn}  
+            ${folderNote}  
+          </li>`;  
+      });  
+  
+      ul += '</ul></div>';  
+  
+      let ragBlock = '';  
+      if (currentRagContext) {  
+        ragBlock = `  
+          <div class="mt-2">  
+            <span id="ragContextToggle" class="toggle-link">実際にモデルに渡したRAGコンテキスト（全文）</span>  
+            <div id="ragContextContainer" style="display:none; margin-top:8px;">  
+              <button type="button" id="ragContextOpenBtn" class="btn btn-outline-primary btn-sm">表示（モーダル）</button>  
+              <span class="text-muted ml-2">文字数: ${currentRagContext.length}</span>  
+            </div>  
+          </div>`;  
+      }  
+  
+      searchFilesDisplay.innerHTML = header + ul + ragBlock;  
+      searchFilesDisplay.style.display = 'block';  
+  
+      setTimeout(function() {  
+        const toggler = document.getElementById('searchFilesToggle');  
+        const ulDiv = document.getElementById('searchFilesUlContainer');  
+        if (toggler && ulDiv) {  
+          toggler.addEventListener('click', function() {  
+            ulDiv.style.display = (ulDiv.style.display === 'none') ? 'block' : 'none';  
+          });  
+        }  
+  
+        const ragToggler = document.getElementById('ragContextToggle');  
+        const ragBox = document.getElementById('ragContextContainer');  
+        const ragBtn = document.getElementById('ragContextOpenBtn');  
+  
+        if (ragToggler && ragBox) {  
+          ragToggler.addEventListener('click', function() {  
+            ragBox.style.display = (ragBox.style.display === 'none') ? 'block' : 'none';  
+          });  
+        }  
+        if (ragBtn) {  
+          ragBtn.addEventListener('click', function() {  
+            showModalRagContext(currentRagContext);  
+          });  
+        }  
+      }, 0);  
+    }  
+  
+    hideLoading();  
+    searchFilesDisplay.style.display = 'none';  
+    searchFilesDisplay.innerHTML = '';  
+  
+    if (initialSearchDataEl && !isProgrammingMode()) {  
+      try {  
+        const initialData = JSON.parse(initialSearchDataEl.textContent || '{}');  
+        renderSearchFiles(initialData);  
+      } catch (e) {  
+        console.warn('initialSearchData parse failed:', e);  
+      }  
+    }  
+  
+    chatForm.addEventListener('submit', async function(e) {  
+      e.preventDefault();  
+  
+      const prompt = promptTextarea.value.trim();  
+      if (!prompt) return;  
+  
+      const userMsgEl = appendUserMessage(prompt);  
+      promptTextarea.value = '';  
+      sessionStorage.removeItem('chat_input');  
+  
+      showLoading();  
+      searchFilesDisplay.style.display = 'none';  
+      searchFilesDisplay.innerHTML = '';  
+      currentSearchFiles = [];  
+      currentRagContext = '';  
+  
+      let preQueriesUsed = false;  
+      let preQueries = [];  
+  
+      try {  
+        if (!isProgrammingMode()) {  
+          try {  
+            const rewriteData = await fetchJson('/rewrite_queries', {  
+              method: 'POST',  
+              headers: {'Content-Type': 'application/json'},  
+              body: JSON.stringify({ prompt })  
+            });  
+  
+            if (rewriteData.ok && Array.isArray(rewriteData.queries) && rewriteData.queries.length > 0) {  
+              preQueries = rewriteData.queries;  
+              preQueriesUsed = true;  
+              addSearchQueriesUnder(userMsgEl, preQueries);  
+            }  
+          } catch (rewriteErr) {  
+            preQueriesUsed = false;  
+            preQueries = [];  
+            console.warn('rewrite_queries failed:', rewriteErr);  
+          }  
+        }  
+  
+        const payload = { prompt };  
+        if (!isProgrammingMode() && preQueries.length > 0) {  
+          payload.pre_queries = preQueries;  
+        }  
+  
+        const data = await fetchJson('/send_message', {  
+          method: 'POST',  
+          headers: {'Content-Type': 'application/json'},  
+          body: JSON.stringify(payload)  
+        });  
+  
+        if (!isProgrammingMode() && !preQueriesUsed && Array.isArray(data.search_query) && data.search_query.length > 0) {  
+          addSearchQueriesUnder(userMsgEl, data.search_query);  
+        }  
+  
+        if (data.response) {  
+          appendAssistantMessage(  
+            data.response,  
+            data.assistant_message_id  
+          );  
+        }  
+  
+        renderSearchFiles(data);  
+      } catch (err) {  
+        appendErrorMessage(err.message || 'エラーが発生しました');  
+      } finally {  
+        hideLoading();  
+      }  
+    });  
+  
+    searchFilesDisplay.addEventListener('click', function(e) {  
+      if (e.target && e.target.classList.contains('doclink')) {  
+        e.preventDefault();  
+        const idx = e.target.getAttribute('data-docidx');  
+        const doc = currentSearchFiles && currentSearchFiles[idx];  
+        if (doc) {  
+          showModalDocument(doc);  
+        }  
+      }  
+    });  
+  
+    promptTextarea.addEventListener('keydown', function(e) {  
+      if (e.key === 'Enter' && !e.shiftKey) {  
+        e.preventDefault();  
+        chatForm.dispatchEvent(new Event('submit'));  
+      }  
+    });  
+  
+    chatBox.addEventListener('click', function(e) {  
+      if (e.target && e.target.classList.contains('feedback-btn')) {  
+        const fc = e.target.closest('.feedback-container');  
+        if (!fc) return;  
+        fc.dataset.rating = e.target.getAttribute('data-rating');  
+        const form = fc.querySelector('.feedback-form');  
+        if (form) form.style.display = 'block';  
+      }  
+  
+      if (e.target && e.target.classList.contains('feedback-cancel')) {  
+        const fc = e.target.closest('.feedback-container');  
+        if (!fc) return;  
+        const form = fc.querySelector('.feedback-form');  
+        if (form) form.style.display = 'none';  
+      }  
+  
+      if (e.target && e.target.classList.contains('feedback-submit')) {  
+        const fc = e.target.closest('.feedback-container');  
+        if (!fc) return;  
+  
+        const rating = fc.dataset.rating;  
+        const comment = (fc.querySelector('.feedback-comment')?.value || '').trim();  
+        const msgId = fc.dataset.msgid || null;  
+        const msgIndexAttr = fc.dataset.msgindex;  
+        const msgIndex = msgIndexAttr ? parseInt(msgIndexAttr, 10) : null;  
+  
+        if (!rating) {  
+          alert('「役に立った」または「不満」を選択してください');  
+          return;  
+        }  
+  
+        fetch('/feedback', {  
+          method: 'POST',  
+          headers: {'Content-Type': 'application/json'},  
+          body: JSON.stringify({  
+            session_id: currentSessionId,  
+            message_id: msgId,  
+            message_index: msgIndex,  
+            rating: rating,  
+            comment: comment  
+          })  
+        })  
+        .then(r => r.json())  
+        .then(resp => {  
+          if (resp.ok) {  
+            fc.innerHTML = `<div class="alert alert-info p-2 mb-0"><small>フィードバック送信済み: ${rating === 'helpful' ? '役に立った' : '不満'}${comment ? ' — ' + escapeHtml(comment) : ''}</small></div>`;  
+          } else {  
+            alert('フィードバック送信に失敗しました');  
+          }  
+        })  
+        .catch(() => alert('フィードバック送信に失敗しました'));  
+      }  
+    });  
+  
+    scrollChatToBottom();  
+    ensureMathJaxReady().then(() => typesetMath());  
+
+
+    // --- ここから追加：チャット履歴のドリルダウンと検索機能 ---
+    const searchInput = document.getElementById('historySearchInput');
+    const originalHistoryList = document.getElementById('originalChatHistory');
+
+    if (originalHistoryList && searchInput) {
+        const items = Array.from(originalHistoryList.querySelectorAll('.chat-history-item'));
+        
+        if (items.length > 0 && !items[0].classList.contains('empty-note')) {
+            const groups = {
+                '今日': [],
+                '昨日': [],
+                '過去7日間': [],
+                '過去30日間': [],
+                'それ以前': []
+            };
+
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
+            const sevenDaysAgo = new Date(today); sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+            const thirtyDaysAgo = new Date(today); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+            items.forEach(item => {
+                const metaEl = item.querySelector('.chat-history-meta');
+                if (!metaEl) {
+                    groups['それ以前'].push(item);
+                    return;
+                }
+                const timeText = metaEl.textContent.trim();
+                const dateMatch = timeText.match(/(\d{4}-\d{2}-\d{2})/);
+                
+                if (dateMatch) {
+                    const date = new Date(dateMatch[1]);
+                    if (date >= today) groups['今日'].push(item);
+                    else if (date >= yesterday) groups['昨日'].push(item);
+                    else if (date >= sevenDaysAgo) groups['過去7日間'].push(item);
+                    else if (date >= thirtyDaysAgo) groups['過去30日間'].push(item);
+                    else groups['それ以前'].push(item);
+                } else {
+                    groups['それ以前'].push(item);
+                }
+            });
+
+            const groupedContainer = document.createElement('div');
+            groupedContainer.id = 'groupedChatHistory';
+
+            Object.keys(groups).forEach(groupName => {
+                if (groups[groupName].length > 0) {
+                    const groupDiv = document.createElement('div');
+                    groupDiv.className = 'history-group';
+                    
+                    const groupHeader = document.createElement('div');
+                    groupHeader.className = 'history-group-header d-flex align-items-center justify-content-between';
+                    groupHeader.innerHTML = `<span>${groupName}</span> <i class="fa fa-chevron-down text-muted" style="font-size: 0.75rem;"></i>`;
+                    
+                    const groupList = document.createElement('ul');
+                    groupList.className = 'chat-history-group-list';
+                    
+                    groups[groupName].forEach(item => {
+                        groupList.appendChild(item);
+                    });
+
+                    // 折りたたみのクリックイベント（デフォルトで展開）
+                    groupHeader.addEventListener('click', () => {
+                        const isHidden = groupList.style.display === 'none';
+                        groupList.style.display = isHidden ? 'block' : 'none';
+                        groupHeader.querySelector('i').className = isHidden ? 'fa fa-chevron-down text-muted' : 'fa fa-chevron-right text-muted';
+                    });
+
+                    groupDiv.appendChild(groupHeader);
+                    groupDiv.appendChild(groupList);
+                    groupedContainer.appendChild(groupDiv);
+                }
+            });
+
+            originalHistoryList.replaceWith(groupedContainer);
+
+            // 検索フィルタリング機能
+            searchInput.addEventListener('input', function(e) {
+                const term = e.target.value.toLowerCase();
+                const allGroups = groupedContainer.querySelectorAll('.history-group');
+                
+                allGroups.forEach(group => {
+                    const groupItems = group.querySelectorAll('.chat-history-item');
+                    let visibleCount = 0;
+                    
+                    groupItems.forEach(item => {
+                        const titleEl = item.querySelector('.chat-history-title');
+                        if (titleEl) {
+                            const title = titleEl.textContent.toLowerCase();
+                            if (title.includes(term)) {
+                                item.style.display = 'block';
+                                visibleCount++;
+                            } else {
+                                item.style.display = 'none';
+                            }
+                        }
+                    });
+                    
+                    group.style.display = visibleCount > 0 ? 'block' : 'none';
+                });
+
+                // もっと見るボタンの表示制御
+                const toggleBtn = document.getElementById('toggleHistoryForm');
+                if (toggleBtn) {
+                    toggleBtn.style.display = term ? 'none' : 'block';
+                }
+            });
+        }
+    }
+    // --- 追加ここまで ---
+
+  });  
+</script>  
+</body>  
+</html>
