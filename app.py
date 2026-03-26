@@ -49,7 +49,7 @@ from openai import AzureOpenAI
 try:  
     from azure.search.documents.models import VectorizedQuery  
 except Exception:  
-    VectorizedQuery = None 
+    VectorizedQuery = None     
 
 MODE_CONFIG = {  
     "qa": {  
