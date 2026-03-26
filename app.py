@@ -49,7 +49,7 @@ from openai import AzureOpenAI
 try:  
     from azure.search.documents.models import VectorizedQuery  
 except Exception:  
-    VectorizedQuery = None  
+    VectorizedQuery = None 
 
 MODE_CONFIG = {  
     "qa": {  
@@ -303,7 +303,7 @@ ALLOWED_ATTRS = {
     "a": ["href", "title", "target", "rel"],  
     "code": ["class"],  
     "pre": ["class"],
-    "img": ["src", "alt", "style", "class", "width", "height"], 
+    "img": ["src", "alt", "class", "width", "height"], 
 }  
 ALLOWED_PROTOCOLS = ["http", "https", "mailto"]  
   
@@ -1608,8 +1608,8 @@ def replace_inline_images_in_text(text: str, rag_sources: list[dict]) -> str:
     def replacer(match):  
         cid = match.group(1).strip()  
         if cid in image_map:  
-            # Markdownのサイズ制御が難しいため、直接HTMLタグにする  
-            return f'\n\n<img src="{image_map[cid]}" style="max-width:100%; height:auto;" alt="参照画像"/>\n\n'  
+            # 直接styleを書かず、クラスを付与する 
+            return f'\n\n<img src="{image_map[cid]}" class="kb-inline-image" alt="参照画像"/>\n\n'  
         return ""  
   
     # [Image: xxx] の形式を検知  
