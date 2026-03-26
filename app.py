@@ -51,14 +51,11 @@ try:
 except Exception:  
     VectorizedQuery = None  
 
-os.environ['HTTP_PROXY'] = 'http://g3.konicaminolta.jp:8080'
-os.environ['HTTPS_PROXY'] = 'http://g3.konicaminolta.jp:8080'
-  
 MODE_CONFIG = {  
     "qa": {  
-        "model": "gpt-5.1",  
-        "extra_args": {"reasoning_effort": "none"},  
-        "system_message": """あなたは社内ナレッジベースの専門家です。ユーザーの質問には、最新かつ正確な情報を日本語で簡潔に回答してください。  
+        "model": "gpt-5.2",  
+        "extra_args": {"reasoning_effort": "low"},  
+        "system_message": """あなたは社内ナレッジベースの専門家です。ユーザーの質問には、最新かつ正確な情報を日本語で回答してください。  
 • 必要な場合のみ箇条書きを使用。  
 • 参照した箇所があるときは本文中に [n] 形式で番号を付け、本文の最後に下記形式でまとめる:Sources:[n] ファイル名／タイトル  
 • 思考過程や感情表現は出力しない。  
@@ -68,10 +65,10 @@ MODE_CONFIG = {
 • MathML や画像など他形式の数式表現は使用せず、コードブロック内ではなく通常の本文として記述してください。  
 • 記号の意味を箇条書きで説明するときは、必ず同じ行に「- $t$：時間」のように書いてください（記号だけの行を作らない／次行に「：説明」を書かないでください。  
 • 記号の意味を箇条書きで説明するときは、「- $F$ : 物体に働く合力」のようにインライン数式 `$...$` を文中に埋め込み、記号だけを1行のディスプレイ数式として単独で出力しないでください。
-• コンテキスト内に【図・画像 chunk_id:xxx】が含まれている場合は、画像を省略したり間引いたりせず、文脈に合わせて積極的に `[Image: xxx]` の形式で回答内にすべて配置してください。""",  
+• コンテキスト内に【図・画像 chunk_id:xxx】が含まれている場合は、回答の最後にまとめて出力するのではなく、必ずその図について言及・解説している文章の直後（文脈に沿ったインライン）に `[Image: xxx]` の形式で挿入してください。""",  
     },  
     "reasoning": {  
-        "model": "gpt-5.1",  
+        "model": "gpt-5.2",  
         "extra_args": {"reasoning_effort": "high"},  
         "system_message": """あなたは研究者向け AI リサーチアシスタントです。提供された社内文書と会話履歴を基に段階的に推論を行い、最終的な結論を導いてください。  
 出力フォーマット:  
@@ -87,10 +84,11 @@ Sources:[n] ファイル名／タイトル
   - 数式（`$...$` / `$$...$$`）はコードブロック（```）やインデント（先頭の空白）内に入れないでください。  
 • MathML や画像など他形式の数式表現は使用せず、コードブロック内ではなく通常の本文として記述してください。  
 • 記号の意味を箇条書きで説明するときは、必ず同じ行に「- $t$：時間」のように書いてください（記号だけの行を作らない／次行に「：説明」を書かないでください。  
-• 記号の意味を箇条書きで説明するときは、「- $F$ : 物体に働く合力」のようにインライン数式 `$...$` を文中に埋め込み、記号だけを1行のディスプレイ数式として単独で出力しないでください。""",  
+• 記号の意味を箇条書きで説明するときは、「- $F$ : 物体に働く合力」のようにインライン数式 `$...$` を文中に埋め込み、記号だけを1行のディスプレイ数式として単独で出力しないでください。
+• コンテキスト内に【図・画像 chunk_id:xxx】が含まれている場合は、回答の最後にまとめて出力するのではなく、必ずその図について言及・解説している文章の直後（文脈に沿ったインライン）に `[Image: xxx]` の形式で挿入してください。""",  
     },  
     "programming": {  
-        "model": "gpt-5.1",  
+        "model": "gpt-5.2",  
         "extra_args": {"reasoning_effort": "high"},  
         "system_message": """あなたはシニアソフトウェアエンジニアです。ルール：  
 • ユーザーが明示的に要求しない限り、出力は日本語でなければなりません。  
@@ -101,7 +99,22 @@ Sources:[n] ファイル名／タイトル
 }  
   
 app = Flask(__name__)  
-  
+
+@app.template_filter('to_jst')
+def to_jst_filter(iso_str):
+    if not iso_str:
+        return ""
+    try:
+        # 念のため末尾の 'Z' を '+00:00' に置換してパース
+        dt = datetime.datetime.fromisoformat(iso_str.replace('Z', '+00:00'))
+        # 日本時間 (UTC+9) に変換
+        jst = datetime.timezone(datetime.timedelta(hours=9))
+        dt_jst = dt.astimezone(jst)
+        return dt_jst.strftime('%Y-%m-%d %H:%M')
+    except Exception:
+        # パース失敗時は元の文字列を簡易整形して返す
+        return iso_str[:16].replace('T', ' ')
+
 APP_ENV = os.getenv("APP_ENV", "prod").lower()  
 IS_LOCAL = APP_ENV == "local"  
 IS_PROD = APP_ENV == "prod"  
@@ -692,7 +705,10 @@ def save_chat_history():
                 current["timestamp"] = now_iso  
   
                 messages_clean = strip_content_html_from_messages(current.get("messages", []))  
-  
+                
+                if not messages_clean:
+                    return
+
                 item = {  
                     "id": session_id,  
                     "user_id": user_id,  
@@ -748,6 +764,10 @@ def load_chat_history():
             for item in items:  
                 if "session_id" in item:  
                     messages_clean = strip_content_html_from_messages(item.get("messages", []))  
+                    
+                    if not messages_clean:
+                        continue
+                    
                     chat = {  
                         "session_id": item["session_id"],  
                         "messages": messages_clean,  
@@ -802,8 +822,8 @@ def start_new_chat():
         "timestamp": now_iso,  
     }  
     append_system_message_history(new_chat, mode_default)  
-  
-    sidebar = session.get("sidebar_messages", [])  
+    sidebar = session.get("sidebar_messages", [])
+    sidebar = [c for c in sidebar if len(c.get("messages", [])) > 0]
     sidebar.insert(0, new_chat)  
     session["sidebar_messages"] = sidebar  
     session["current_chat_index"] = 0  

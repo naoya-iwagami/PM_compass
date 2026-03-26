@@ -124,7 +124,7 @@
                                             </span>  
                                             <small class="chat-history-meta">  
                                                 {% if chat.created_at %}  
-                                                    {{ chat.created_at[:16].replace('T', ' ') }}  
+                                                    {{ chat.created_at | to_jst }}  
                                                 {% else %}  
                                                     {{ chat.session_id[:8] }}  
                                                 {% endif %}  
